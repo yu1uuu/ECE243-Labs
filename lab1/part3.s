@@ -9,7 +9,7 @@ _start:
 myloop: 
 
 		addi r8, r8, 1
-		add r12, r12, r8
+		add r12, r8
 		ble r8, r9, myloop
 
   		movia r25, LEDs
