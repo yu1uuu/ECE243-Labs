@@ -1,8 +1,8 @@
 .text  # The numbers that turn into executable instructions
 .global _start
 _start:
- 	.equ    LEDs, 0xFF200000
-  
+	 .equ LEDs, 0xFF200000
+
 /* r13 should contain the grade of the person with the student number, -1 if not found */
 /* r10 has the student number being searched */
 
@@ -33,7 +33,7 @@ search_loop:
 
     # Increment the array pointers and continue searching 
     addi r8, r8, 4
-    addi r9, r9, 4
+    addi r9, r9, 1
 	
 	# Load the current student number from the array into r11
     ldw r11, (r8)
@@ -42,21 +42,22 @@ search_loop:
 
 found_student:
     /* Load the corresponding grade */
-    ldw r13, 0(r9)
+    ldb r13, 0(r9)
     br end_loop
 
 end_loop:
 
 	movia r8, result
    
-    stw r13, (r8)
+    stb r13, (r8)
 
 
 /* result should hold the grade of the student number put into r10, or
 -1 if the student number isn't found */
 
-  	    movia r25, LEDs
+ 	    movia r25, LEDs
             stwio r13, (r25)
+
 iloop: br iloop
 
 
@@ -66,18 +67,18 @@ iloop: br iloop
 /* result should hold the grade of the student number put into r10, or
 -1 if the student number isn't found */ 
 
-result: .word 0
-		
+result: .byte 0
+		.align 2 # place Snumbers at an address divisable by 4
 /* Snumbers is the "array," terminated by a zero of the student numbers  */
 Snumbers: .word 10392584, 423195, 644370, 496059, 296800
         .word 265133, 68943, 718293, 315950, 785519
         .word 982966, 345018, 220809, 369328, 935042
         .word 467872, 887795, 681936, 0	
 	
-
+		.align 2
 /* Grades is the corresponding "array" with the grades, in the same order*/
-Grades: .word 99, 68, 90, 85, 91, 67, 80
-        .word 66, 95, 91, 91, 99, 76, 68  
-        .word 69, 93, 90, 72
+Grades: .byte 99, 68, 90, 85, 91, 67, 80
+        .byte 66, 95, 91, 91, 99, 76, 68  
+        .byte 69, 93, 90, 72
 	
 	
