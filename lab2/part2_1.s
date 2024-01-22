@@ -1,7 +1,8 @@
 .text  # The numbers that turn into executable instructions
 .global _start
 _start:
-
+ 	.equ    LEDs, 0xFF200000
+  
 /* r13 should contain the grade of the person with the student number, -1 if not found */
 /* r10 has the student number being searched */
 
@@ -54,6 +55,8 @@ end_loop:
 /* result should hold the grade of the student number put into r10, or
 -1 if the student number isn't found */
 
+  	    movia r25, LEDs
+            stwio r13, (r25)
 iloop: br iloop
 
 
