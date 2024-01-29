@@ -6,11 +6,11 @@ _start:
 
     movia   r10, TEST_NUM     # Load address of the first word in TEST_NUM
     movi    r11, 0            # Initialize counter for array index
-    movi    r12, 0            # Initialize max count of ones
-    movi    r13, 0            # Initialize max count of zeros
+    movi    r12, 0            # max count of ones
+    movi    r13, 0            # max count of zeros
 
 loop:
-    ldw     r4, 0(r10)        # Load the next word from TEST_NUM into r4
+    ldw     r4, (r10)        # Load the next word
     beq     r4, zero, done    # Check if the word is 0 (end of list), then end loop
 
     call    ONES              # Call the ONES subroutine for counting ones
@@ -23,7 +23,7 @@ updateOnes:
 countZeros:
     movi    r14, 0xFFFFFFFF   # Load all 1's to r14
     xor     r4, r4, r14       # Invert bits in r4 to count zeros
-    call    ONES              # Reuse ONES subroutine for counting zeros
+    call    ONES              # call ONES subroutine for counting zeros
 
     bgt     r2, r13, updateZeros
     br      nextWord
@@ -37,20 +37,20 @@ nextWord:
 
 done:
     movia   r8, LargestOnes
-    ldw     r12, 0(r8)        # Load the largest count of ones
+    ldw     r12, (r8)        # Load the largest count of ones
     andi    r12, r12, 0x3FF   # Get only the low-order 10 bits
 
     movia   r9, LargestZeroes
-    ldw     r13, 0(r9)        # Load the largest count of zeros
+    ldw     r13, (r9)        # Load the largest count of zeros
     andi    r13, r13, 0x3FF   # Get only the low-order 10 bits
 
 display_loop:
     movia   r25, LEDs
-    stwio   r12, 0(r25)       # Display LargestOnes on LEDs
+    stwio   r12, (r25)        # Display LargestOnes on LEDs
     call    DELAY_LOOP        # Delay
 
     movia   r25, LEDs
-    stwio   r13, 0(r25)       # Display LargestZeroes on LEDs
+    stwio   r13, (r25)        # Display LargestZeroes on LEDs
     call    DELAY_LOOP        # Delay
     br      display_loop      # Repeat the display loop
 
