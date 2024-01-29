@@ -32,6 +32,8 @@ _start:
 
     
 loop:
+    beq r4, r0, endiloop #check if we have reached 0 yet
+
 
     call ONES #ONES checks the number of 1's in the current word
     ble r2, r7, notMoreOne #If the count of ones (r2) is greater than the current largest count of ones (r7), it updates r7 and displays the low-order 10 bits of the count on the LEDs.
@@ -132,7 +134,10 @@ delay: #incrementing register r23 until it reaches the value stored in r22, caus
 
     movi r23, 0 #resets register r23 to 0 after the delay loop has completed.
     ret 
-
+endiloop: 
+    ldw r7, (r10)
+    ldw r14, (r12)
+    br endiloop
 
 TEST_NUM: .word 0x4a01fead, 0xF677D671,0xDC9758D5,0xEBBD45D2,0x8059519D
 .word 0x76D8F0D2, 0xB98C9BB5, 0xD7EC3A9E, 0xD9BADC01, 0x89B377CD
