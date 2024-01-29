@@ -56,7 +56,7 @@ loop:
     ldw  r4, (r11)  # load the next number into r14
 
 .loop:
-    br .loop
+    br _start
 
 assignNewValone:
     subi sp, sp, 4   # save the return address (ra) onto the stack.
@@ -85,9 +85,11 @@ assignNewValzero:
     #addi r11, r11, 4   # add 4 to pointer to the numbers to point to the next one
     #ldw  r4, (r11)  # load the next number into r10
     ret
-    
+_start: 
+    br _loop
+
 .loop: 
-    br .loop 
+    br _loop 
 notMoreOne:
 	#handles cases where there are no more ones to be processed.
     #reload r4 with the next word from the sequence (TEST_NUM), flip all its bits, and call the ONES subroutine to count the number of ones.
