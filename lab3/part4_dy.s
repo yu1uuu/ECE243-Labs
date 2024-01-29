@@ -54,9 +54,9 @@ loop:
 
     addi r11, r11, 4   # add 4 to pointer to the numbers to point to the next one
     ldw  r4, (r11)  # load the next number into r14
+    br loop 
 
-.loop:
-    br _start
+
 
 assignNewValone:
     subi sp, sp, 4   # save the return address (ra) onto the stack.
