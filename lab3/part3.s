@@ -1,67 +1,94 @@
 .text
 .global _start
 _start:
-    movia   r10, TEST_NUM     # Load address of the first word in TEST_NUM
-    movi    r11, 0            # Initialize counter for array index
-    movi    r12, 0            # Initialize max count of ones
-    movi    r13, 0            # Initialize max count of zeros
+
+    movia sp, 0x20000   # Stack pointer set to address 0x20000
+
+    movia r10, LargestOnes
+    movia r12, LargestZeroes
+    movia r11, TEST_NUM
+
+    movi r7, 0          # Register to store largest number of 1s
+    movi r14, 0         # Register to store largest number of 0s
+
+    br loop
+
+endiloop: 
+    ldw r7, (r10)
+    ldw r14, (r12)
+    br endiloop
 
 loop:
-    ldw     r4, 0(r10)        # Load the next word from TEST_NUM into r4
-    beq     r4, zero, done    # Check if the word is 0 (end of list), then end loop
+    beq r4, r0, endiloop   # Check if we have reached the end of the sequence
 
-    call    ONES              # Call the ONES subroutine for counting ones
-    bgt     r2, r12, updateOnes
-    br      countZeros
+    call ONES              # Call subroutine to count ones
+    ble r2, r7, notMoreOne # Compare with largest count of ones
 
-updateOnes:
-    mov     r12, r2           # Update max count of ones
+    call assignNewValone   # Update largest count of ones
 
-countZeros:
-    movi    r14, 0xFFFFFFFF   # Load all 1's to r14
-    xor     r4, r4, r14       # Invert bits in r4 to count zeros
-    call    ONES              # Reuse ONES subroutine for counting zeros
+    xor r4, r4, r15        # Invert bits to count zeroes
+    call ONES              # Call subroutine to count zeroes
+    ble r2, r14, notMoreZero   # Compare with largest count of zeroes
 
-    bgt     r2, r13, updateZeros
-    br      nextWord
+    call assignNewValzero  # Update largest count of zeroes
 
-updateZeros:
-    mov     r13, r2           # Update max count of zeros
+    addi r11, r11, 4       # Move to the next number in the sequence
+    ldw  r4, (r11)
 
-nextWord:
-    addi    r10, r10, 4       # Move to the next word in the array
-    br      loop
+    br loop
 
-done:
-    movia   r8, LargestOnes
-    stw     r12, 0(r8)        # Store the largest count of ones
-    movia   r9, LargestZeroes
-    stw     r13, 0(r9)        # Store the largest count of zeros
-    br      endiloop
+assignNewValone:
+    stw r2, 0(r10)          # Store count of ones
+    mov r7, r2              # Update largest count of ones
+    ret
+
+assignNewValzero:
+    stw r2, 0(r12)          # Store count of zeroes
+    mov r14, r2             # Update largest count of zeroes
+    ret
+
+notMoreOne:
+    xor r4, r4, r15         # Invert bits to count zeroes
+    call ONES               # Call subroutine to count zeroes
+    ble r2, r14, notMoreZero   # Compare with largest count of zeroes
+
+    call assignNewValzero   # Update largest count of zeroes
+
+    addi r11, r11, 4        # Move to the next number in the sequence
+    ldw  r4, (r11)
+    br loop
+
+notMoreZero:
+    addi r11, r11, 4        # Move to the next number in the sequence
+    ldw  r4, (r11)
+    br loop
 
 ONES:
-    movi    r6, 0             # Initialize the counter in r6
-    movi    r7, 32            # Set loop counter for 32 bits
+    movi r5, 32             # Counter for number of bits
+    movi r6, 1              # Mask for checking each bit
+    movi r2, 0              # Resulting count of ones
 
-count_loop:
-    andi    r9, r4, 1         # Check the least significant bit of r4
-    beq     r9, zero, skip    # If it is 0, skip the increment
-    addi    r6, r6, 1         # Otherwise, increment the counter
+searchLoop:
+    beq r5, r0, finished    # If all bits processed, exit loop
 
-skip:
-    srai    r4, r4, 1         # Shift the input word right by 1 bit
-    subi    r7, r7, 1         # Decrement the loop counter
-    bne     r7, zero, count_loop # Repeat until all bits are checked
+    and r3, r4, r6          # Check if bit is set
+    srli r4, r4, 1          # Shift to the next bit
+    beq r3, r6, incrementCount   # If bit is set, increment count
 
-    mov     r2, r6            # Move the final count to r2
-    ret                       # Return to the calling function
+    subi r5, r5, 1          # Decrement bit counter
+    br searchLoop           # Continue loop
 
-endiloop: br endiloop         
+incrementCount:
+    addi r2, r2, 1          # Increment count of ones
+    subi r5, r5, 1          # Decrement bit counter
+    br searchLoop           # Continue loop
 
-.data
-TEST_NUM:  .word 0x4a01fead, 0xF677D671, 0xDC9758D5, 0xEBBD45D2, 0x8059519D
-           .word 0x76D8F0D2, 0xB98C9BB5, 0xD7EC3A9E, 0xD9BADC01, 0x89B377CD
-           .word 0  
+finished:
+    ret                     # Return from subroutine
 
-LargestOnes: .word 0
-LargestZeroes: .word 0
+TEST_NUM: .word 0x4a01fead, 0xF677D671,0xDC9758D5,0xEBBD45D2,0x8059519D
+          .word 0x76D8F0D2, 0xB98C9BB5, 0xD7EC3A9E, 0xD9BADC01, 0x89B377CD
+          .word 0            # End of list
+
+LargestOnes: .word 0        # Store largest count of ones
+LargestZeroes: .word 0      # Store largest count of zeroes
