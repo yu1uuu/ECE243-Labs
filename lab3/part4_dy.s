@@ -28,10 +28,16 @@ _start:
 	movia r25, LEDs #memory address for LED is stored in r25
     
     br loop #jumps to loop label to start loop
-    
+
+endiloop: 
+    ldw r7, (r10)
+    ldw r14, (r12)
+    br endiloop
+
 
     
 loop:
+    beq r4, r0, endiloop #check if we have reached 0 yet
 
     call ONES #ONES checks the number of 1's in the current word
     ble r2, r7, notMoreOne #If the count of ones (r2) is greater than the current largest count of ones (r7), it updates r7 and displays the low-order 10 bits of the count on the LEDs.
@@ -125,7 +131,7 @@ finished:
 
 delay: #incrementing register r23 until it reaches the value stored in r22, causing a delay.
     addi r23, r23, 1 
-    ble r23, r22, delay
+    ble r23, r22, delay    
 
     movi r23, 0 #resets register r23 to 0 after the delay loop has completed.
     ret 
