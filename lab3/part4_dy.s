@@ -23,7 +23,7 @@ _start:
     movi r7, 0 #r7 stores largest number of 1s, initialize to 0
     movi r14, 0 #r14 stores largest number of 0s, initialize to 0
 
-    movi r22, 32767 #r22 is set to delay constant for use in delay subroutine 
+    movia r22, 200000 #r22 is set to delay constant for use in delay subroutine 
     .equ    LEDs, 0xFF200000 
 	movia r25, LEDs #memory address for LED is stored in r25
     
