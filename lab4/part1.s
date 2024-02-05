@@ -1,77 +1,87 @@
-#functionality:
-#KEY0: 1 base 10 
-#KEY1: increment value iff < 15 base 10
-#KEY2: decrement value iff > 1  
-#KEY3: blank the display, anyth pressed after = 1
-# address of parallel port connected to KEYs = 0xFF200050
-#note: make sure that program waits until button released 
+.global _start
 
-.global _start 
+#initialize LEDs
 .equ LEDs, 0xFF200000 
-.equ KEY_BASE, 0xFF200050 # base address of KEYS parallel port
+
+#initialize keys
+.equ KEY_BASE, 0xFF200050
 
 
 _start:
-    movia r25, LEDs
-    movia r26, KEY_BASE # get that address into a register
-    movia r15, 15 #constant 
-    movia r1, 1 #constant 
-    movia r2, 0 #currentValue
+    movia r9, 15 #const reg
+    movia r10, 1 #const reg
+    movia r11, 0 #currentValue
 
-    #use polling loop to see if button has been pressed. 
+
+	movia r25, LEDs
+    movia r26, KEY_BASE
+
+poll1:
+    ldwio r8, (r26) #load KEY value
     
-poll_reset:
-    ldwio r8, (r26) #load KEY 
+    andi r8, r8, 0x1 #check key 1
+    beq r8, r0, poll2 #jump to next if not key1
+
+    br reset
+
+poll2:
+    ldwio r8, (r26) #load KEY value
+
+    andi r8, r8, 0x2 #check key 2
+    beq r8, r0, poll3 #jump to next if not key1
+
+    br increment
+
+poll3:
+
+    ldwio r8, (r26) #load KEY value
+
+    andi r8, r8, 0x4 #check key 3
+    beq r8, r0, poll4 #jump to next if not key1
+
+    br decrement
+poll4:
+
+    ldwio r8, (r26) #load KEY value
+
+    andi r8, r8, 0x8 #check key 4
+    beq r8, r0, poll1 #jump to next if not key1
+
+
+    br blank
     
-    andi r8, r8, 0x1 #checks key1 by performing a bitwise AND operation
-    beq r8, r0, poll_increment  # if not key 1 go to next stage 
-    br reset # if key pressed, reset 
 
-poll_increment: 
-    ldwio r8, (r26)
-    andi r8,r8, 0x2 #key2 
-    beq r8,r0, poll_decrement
-    br increment 
+reset:
+    movi r11, 1
+    
+    br deadLoop
 
-poll_decrement: 
-    ldwio r8, (r26)
-    andi r8,r8, 0x4 #key2 
-    beq r8,r0, poll_blank 
-    br decrement 
+increment:
+    beq r9, r11, deadLoop #verify we are not too high
 
-poll_blank:
-    ldwio r8, (r26)
-    andi r8,r8, 0x8 #key2 
-    beq r8,r0, poll_reset 
-    br blank     
+    addi r11, r11, 1
 
-reset: 
-    movi r10, 1 
-    br wait 
+    br deadLoop
 
-increment: 
-    beq r15, r10, wait #make sure not more than 15
-    addi r11, r11, 1 
-    br wait
-
-decrement: 
-   beq r10, r11, wait #verify we are not too high
+decrement:
+    beq r10, r11, deadLoop #verify we are not too high
 
     subi r11, r11, 1
 
-    br wait 
+    br deadLoop
 blank: 
     movia r11, 0
 
-    br blankWait
+    br blankDeadLoop
+
+deadLoop:
+    ldwio r8, (r26) #load KEY value
+    beq r8, r0, poll1
+
+    br deadLoop
 
 
-wait: 
-    ldwio r8, (r26) #load KEY value 
-    beq r8, r0, poll_reset 
-    br wait 
-
-blankWait: 
+blankDeadLoop:
     ldwio r8, (r26) #load KEY value
 
     andi r8, r8, 0x8
@@ -82,6 +92,6 @@ blankWait:
 
     br blankDeadLoop
 
-
-
-
+resetToOne:
+    movi r11, 1
+    br poll1
