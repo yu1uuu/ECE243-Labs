@@ -1,0 +1,139 @@
+/* part2.s */
+
+/*
+
+Displays a binary counter on the 10 LEDs.
+
+Increments approximately every 0.25 seconds.
+
+Max value is 255(d). After this value, the counter will go to 0 (i.e. 254 -- 255 -- 0 -- 1 -- ...)
+
+Counter must stop/start when any KEY is pressed.
+
+*/
+
+.text
+
+.global _start
+_start:
+	/*
+	NOTE:		r3 and r4 will be used by the DELAY_LOOP subroutine
+				r10 will store the current state of the LEDs
+				r11 will store the EDGE state of the keys
+				r12 will store the value "255", which is the limit of the counter				
+	*/
+	
+	.equ LED, 0xFF200000 /*defines short-form "LED"*/
+	.equ KEY, 0xFF200050 /*defines short-form "KEY"*/
+		
+	movia r8, LED /*r8 stores the address of the LEDs*/
+	movia r9, KEY /*r9 stores the address of the keys*/
+	
+	movi r12, 0x63 
+	movia r13,0x80
+	movi r14, 0x380/*r12 stores the value "255", which is the limit of the counter*/
+	COUNTER_OFF:
+	/*check the key EDGE values; when they are non-zero, reset the EDGE values and turn on the counter*/
+		
+		ldwio r11, 12(r9) /*store the EDGE state of the keys in r11*/
+		
+		beq r11, r0, COUNTER_OFF /*if no KEY pressed, then check again*/
+		
+		stwio r11, 12(r9) /*store a 1 into the key that just turned on to reset the EDGE,
+							i.e. store the current value of EDGE, which has a 1 in 
+							the bit that we want to reset, into itself to reset it.*/
+		
+		br COUNTER_ON /*turn the counter on*/
+			
+	COUNTER_ON:
+	/*execute delay loop; when each delay loop is done (i.e. every 0.25 seconds) do the following:
+		1. increment the counter by one, looping around to 0 when we spill over 255
+		2. check the key EDGE values; when they are non-zero, reset the EDGE values and turn off the counter*/
+
+		call DELAY_LOOP
+		ldwio r10, 0(r8) /*stores the current state of the LEDs in r10*/
+		andi r15,r10,0x7f
+		beq r15, r12, RESET_COUNTER /*if the counter is at 255, reset it*/
+
+		addi r10, r10, 1 /*adds 1 to the counter */
+
+		stwio r10, 0(r8) /*stores the new counter value in the LEDs*/
+
+		br CHECK_EDGE /*check the edge values to see if a key has been pressed*/
+
+	RESET_COUNTER:
+	/*reset the counter to 0*/
+	
+		 /*stores the value "0" in the LEDs*/
+		add r10, r10, r13
+		movia r16,0x464
+		beq r10,r16,RESET
+		subi r10,r10,0x63
+		stwio r10, 0(r8)
+		br CHECK_EDGE /*check the edge values to see if a key has been pressed*/
+	RESET:
+		stwio r0, 0(r8)
+	CHECK_EDGE:
+	/*use when counter is on; checks the edge values
+	if no key has been pressed, then loop back to COUNTER_ON
+	if key pressed, turn counter off*/
+	
+		ldwio r11, 12(r9) /*store the EDGE state of the keys in r11*/
+		
+		beq r11, r0, COUNTER_ON /*if no KEY pressed, then loop back to COUNTER_ON*/
+		
+		stwio r11, 12(r9) /*store a 1 into the key that just turned on to reset the EDGE,
+							i.e. store the current value of EDGE, which has a 1 in 
+							the bit that we want to reset, into itself to reset it.*/
+		
+		br COUNTER_OFF /*turn the counter off*/
+
+
+/*BEGIN SUBROUTINE: DELAY_LOOP*/
+
+DELAY_LOOP:
+	movia r4,0xFF202000
+	movi r5, 0x8
+	stwio r5,4(r4)
+	movia r5,%lo(1000)
+	stwio r5,8(r4)
+	movia r5,%hi(1000)
+	stwio r5,12(r4)
+	movi r5, 0x4
+	stwio r5,4(r4)
+	bWait:
+		ldwio r5,0(r4)
+		andi r5,r5,0x1
+		beq r5,r0,bWait
+		movi r5,0x0
+		stwio r5,(r4)
+	ret
+/*DELAY_LOOP:
+	movia r6,0xFF202000
+	movi r7, 0x8
+	stwio r7,4(r6)
+	movia r7,%lo(1000000)
+	stwio r7,8(r6)
+	movia r7,%hi(1000000)
+	stwio r7,12(r6)
+	movi r7, 0x4
+	stwio r7,4(r6)
+	bWait:
+		ldwio r7,0(r6)
+		andi r7,r7,0x1
+		beq r7,r0,bWait
+		movi r7,0x0
+		stwio r7,(r7)
+	ret
+	
+
+/*END SUBROUTINE: DELAY_LOOP*/
+
+#.data
+
+#COUNTER_DELAY: .word 2708333 /*change to 10,000,000 when running on the FPGA*/
+	
+	
+	
+	
+	
