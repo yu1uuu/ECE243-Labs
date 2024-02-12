@@ -13,19 +13,18 @@ IRQ_HANDLER:
     subi ea, ea, 4          # Decrement the exception address if it was an external interrupt
 
 SKIP_EA_DEC:
-
     # Check for push button interrupt
     andi r16, et, 0b10      # Check if the interrupt is caused by a push button (bit 1)
     beq r16, r0, NO_KEY     # If not, skip to NO_KEY
     call KEY_ISR            # Call the push button interrupt service routine
 
-NO_KEY:
+KEY_NOTPRESSED:
     # Check for timeout interrupt
     andi r16, et, 0b1       # Check if the interrupt is caused by a timeout (bit 0)
     beq r16, r0, NO_TIMEOUT # If not, skip to NO_TIMEOUT
     call TIMEOUT_ISR        # Call the timeout interrupt service routine
 
-NO_TIMEOUT:
+TIMEOUT_NOT:
     # Restore the context from the stack
     ldw ra, (sp)            # Restore the return address from the stack
     ldw et, 0x4(sp)         # Restore the exception temporary register from the stack
@@ -38,29 +37,22 @@ NO_TIMEOUT:
 # Define constants for memory-mapped IO
 .equ TIMER_BASE, 0xff202000
 .equ LED_BASE, 0xff200000
+
 .equ KEY_BASE, 0xff200050
 .equ COUNTER_VALUE, 25000000
 
 # Timeout Interrupt Service Routine
-TIMEOUT_ISR:
+TIMEOUT:
     # Save context
     subi sp, sp, 16         # Make room on the stack for 4 registers
     stw r16, (sp)           # Save r16
     stw r17, 0x4(sp)        # Save r17
-    stw r18, 0x8(sp)        # Save r18
-    stw r19, 0xC(sp)        # Save r19
+    stw r19, 0x8(sp)        # Save r19
+    stw r20, 0xC(sp)        # Save r20
 
     # Handle timeout
     movia r16, TIMER_BASE   # Load timer base address into r16
     stwio r0, (r16)         # Clear the timeout bit by writing 0 to the timer base address
-
-    # Increment COUNT based on RUN
-    movia r16, COUNT        # Load the address of COUNT into r16
-    ldw r17, (r16)          # Load current value of COUNT into r17
-    movia r18, RUN          # Load the address of RUN into r18
-    ldw r19, (r18)          # Load the value of RUN into r19
-    add r17, r17, r19       # Add RUN to COUNT
-    stw r17, (r16)          # Store the new value of COUNT
 
     # Restore context
     ldw r16, (sp)           # Restore r16
@@ -77,27 +69,28 @@ KEY_ISR:
     stw r16, (sp)           # Save r16
     stw r17, 0x4(sp)        # Save r17
 
-    # Check if a key has been pressed
-    movia r16, KEY_BASE     # Load the base address of keys into r16
-    ldwio r17, 0xC(r16)     # Load the edge capture register into r17
-    beq r17, r0, END_KEY_ISR # If no key press is detected, jump to END_KEY_ISR
-
+   
     # Clear edge capture and toggle RUN
     movi r17, 0b1111        # Prepare to clear edge capture register
     stwio r17, 0xC(r16)     # Clear edge capture by writing 0b1111 to it
 
-    # Toggle RUN
-    movia r16, RUN          # Load the address of RUN into r16
-    ldw r17, (r16)          # Load current value of RUN into r17
-    xori r17, r17, 1        # Toggle RUN using XOR with 1
-    stw r17, (r16)          # Store the new value of RUN
+    ldw r15, 0(r16)         
+    xori r15, r15, 1
+    stw r15, 0(r16)
 
-END_KEY_ISR:
-    # Restore context
-    ldw r16, (sp)           # Restore r16
-    ldw r17, 0x4(sp)        # Restore r17
-    addi sp, sp, 8          # Adjust the stack pointer back
-    ret                     # Return from ISR
+    stwio r12, 0xC(r13)      #clear edge register
+    ret
+
+END_KEY:
+    ldw     et, 0(sp)           
+    ldw     ra, 4(sp)
+    ldw     r20, 8(sp)
+    ldw     ea, 12(sp)
+    ldw     r15, 16(sp)
+    ldw     r16, 20(sp)
+    ldw     r6, 24(sp)
+    addi    sp, sp, 28          # restore pointer
+    eret                        # return exception
 
 .global  _start  # Declare the entry point of the program
 _start:
@@ -121,33 +114,30 @@ LOOP:
     br LOOP                 # Loop indefinitely
 
 # Timer configuration subroutine
-CONFIG_TIMER:
-    movia r8, TIMER_BASE    # Load the base address of the timer into r8
+CONFIG_TIMER:                   # code not shown
 
-    # Stop and reset the timer
-    movi r9, 0b1000         # Prepare to stop the timer
-    stwio r9, 0x4(r8)       # Stop the timer
-    stwio r0, (r8)          # Reset timer data
+    
+    movia r6, TIMER_BASE # base address of timer in r20
+	stwio r0, 0x0(r6) # clear the TO (Time Out) bit in case it is on
+	movia r4, COUNTER_DELAY # load the delay value
+	srli r5, r4, 16 # shift right by 16 bits
+	andi r4, r4, 0xFFFF # mask to keep the lower 16 bits
+	stwio r4, 0x8(r6) # write to the timer period register (low)
+	stwio r5, 0xc(r6) # write to the timer period register (high)
+	movi r4, 0b0111 # enable continuous mode and start timer
+	stwio r4, 0x4(r6) # write to the timer control register to
 
-    # Set the timer period
-    movia r9, COUNTER_VALUE  # Load the counter initialization value
-    srli r10, r9, 16        # Shift right to get the upper 16 bits
-    andi r9, r9, 0xffff     # Mask to get the lower 16 bits
-    stwio r9, 0x8(r8)       # Set lower 16 bits of the period
-    stwio r10, 0xC(r8)      # Set upper 16 bits of the period
-
-    # Start the timer
-    movi r9, 0b0111         # Prepare to start the timer, continuous mode, with interrupt on timeout
-    stwio r9, 0x4(r8)       # Write to control register to start the timer
-    ret                     # Return from subroutine
-
+    ret
+    
 # Keys configuration subroutine
-CONFIG_KEYS:
-    movia r8, KEY_BASE      # Load the base address of the keys into r8
-    movi r9, 0b1111         # Prepare to enable interrupts for all keys
-    stwio r9, 0xC(r8)       # Clear edge capture register
-    stwio r9, 0x8(r8)       # Enable interrupts for all keys
-    ret                     # Return from subroutine
+CONFIG_KEYS:                  
+     
+    movia r13, KEY_BASE #address of key pushbuttons in r2
+    stwio r12, 0xC(r13) #reset the edge capture reg with 1111
+    stwio r12, 8(r13)   
+
+    ret
+    
 
 .data  # Start of the data section
 
@@ -158,4 +148,4 @@ COUNT:  .word    0x0  # Initialize COUNT, used by timer
 .global  RUN     # Declare RUN as a global variable
 RUN:    .word    0x1  # Initialize RUN, used to control whether to increment COUNT
 
-.end  # End of the file
+.end 
