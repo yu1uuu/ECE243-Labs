@@ -23,8 +23,8 @@ int main(void) {
 	int sampleCount = 0;
 
     while (1) {
-		frequency = 100 + (*swp % 10) * 190;
-		halfWaveSamples = 8000/(2*frequency);
+		frequency = 100 + (*swp % 10) * 190; // maps 0-9 switch value to 100Hz to 2000Hz
+		halfWaveSamples = 8000/(2*frequency); // recalculate for the current frequency
 		
         // Toggle the value every half wave cycle
         if (sampleCount >= halfWaveSamples) {
