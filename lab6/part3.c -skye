@@ -1,3 +1,5 @@
+
+
 int main(){
     volatile int * audio_ptr = (int*) 0xFF203040;
     volatile int * SW_ptr = (int*) 0xFF200040;
@@ -5,7 +7,7 @@ int main(){
     int freq, SW, num_burst;
     while (1){
 
-        //code to figure out the freq based off val of switches
+        // frequency changes depending on the value of the switch
         SW = *SW_ptr & 0b1111111111; //lower ten 1s
         freq = 100 + (1900 * SW / 1024);
         num_burst = 8000 / (2 * freq);
