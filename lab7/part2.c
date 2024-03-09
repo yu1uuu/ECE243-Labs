@@ -1,6 +1,19 @@
+//vga in de1soc redraws screen every 1/60th second. 
+//use frame buffer to synchronize with the vertical synchronization cycle to ensure image is changed only once every 1/60th second. 
+//synchronizing is done by writing 1 into Buffer register then waiting until bit S of status register =0 
+
+//frame buffer swap can be used to sync vga controller via S bit in status register
+
+//write a c program that moves horizontal line up and down the screen and bounces the line off the top and bottom. 
+//1. clear screen 
+//2. draw line at starting row on the screen 
+//3. endless loop to erase the line by drawing the line using black and redraw it one row above or below 
+//4. when line reaches edges it should move opposite way
+
+#include <stdio.h>
 #include <stdbool.h>
 
-int pixel_buffer_start;  // Global variable location of frame buffer
+int pixel_buffer_start;  // global variable location of frame buffer
 
 void plot_pixel(int x, int y, short int line_colour) {
     volatile short int *one_pixel_address;
@@ -17,52 +30,59 @@ void clear_screen() {
         for (y = 0; y < 240; y++) plot_pixel(x, y, 0);
 }
 
-void swap(int *x, int *y) {
-  int temp = *x;
-  *x = *y;
-  *y = temp;
+void swap(int *a, int *b) {
+  int temp = *a;
+  *a = *b;
+  *b = temp;
 }
 
-void draw_line(int x0, int y0, int x1, int y1, short int line_colour) {
-    bool is_steep = abs(y1 - y0) > abs(x1 - x0);
-    if (is_steep) {
+void draw_line(int x0, int y0, int x1, int y1, short int color){
+
+    int y_step = 0; 
+    bool steep= abs(y1-y0) > abs(x1-x0); 
+    if (steep){ 
         swap(&x0, &y0);
         swap(&x1, &y1);
-    } else if (x0 > x1) {
+    }
+
+    else if (x0>x1){
         swap(&x0, &x1);
         swap(&y0, &y1);
     }
 
     int deltax = x1 - x0;
     int deltay = abs(y1 - y0);
+    int error = -(deltax / 2); 
 
-    int error = -(deltax / 2);
-    int y = y0;
-    int y_step;
+    int y = y0; 
+  
 
-    if (y0 < y1) {
-        y_step = 1;
-    } else {
-        y_step = -1;
+    if (y0 < y1){ 
+        y_step =1 ; 
+    }
+    else{
+        y_step = -1; 
     }
 
-    for (int x = x0; x <= x1; x++) {
-        if (is_steep) {
-            plot_pixel(y, x, line_colour);
-        } else {
-            plot_pixel(x, y, line_colour);
+    for (int x= x0; x<= x1; x++){
+        if (steep){
+            plot_pixel(y,x,color); 
         }
-        error = error + deltay;
+        else{
+            plot_pixel(x,y,color); 
+        }
 
-        if (error > 0) {
-            y = y + y_step;
-            error = error - deltax;
+        error = error + deltay; 
+        if (error >0){
+            y += y_step; 
+            error -= deltax; 
         }
     }
+
+
 }
-
 void erase_line(int x0, int y0, int x1, int y1, short int line_colour) {
-    draw_line(x0, y0, x1, y1, 0x0000);
+    draw_line(x0, y0, x1, y1, 0);
 }
 
 int main(void) {
