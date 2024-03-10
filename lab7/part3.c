@@ -4,13 +4,15 @@ volatile int pixel_buffer_start; // global variable
 short int Buffer1[240][512]; // 240 rows, 512 (320 + padding) columns
 short int Buffer2[240][512];
 
+
+//given
 void plot_pixel(int x, int y, short int line_color)
 {
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
 
 //draws a line from x1, y1 to x2, y2. Requires plotpixel to run
-//assumes math.h not available
+
 void draw_line(int x1, int y1, int x2, int y2, int colour) {
 	int is_steep = 0;
 	int deltay = y2 - y1;
@@ -142,15 +144,21 @@ int main(void)
 	int recty[8];
 	int right[8];
 	int down[8];
+    short int colour_box[8]; // Colour of each box
+
 	int i = 0;
 	int size = 3;
 	
-	for(i = 0; i < 8; i++){
-	rectx[i] = rand()%(319 - size);
-	recty[i] = rand()%(239 - size);
-	right[i] = rand()%2;
-	down[i] = rand()%2;
-	}
+	
+     // Initialize boxes
+    for (int i = 0; i < 8; i++) {
+        rectx[i] = rand() % (320 - 2); // Random initial x-coordinate within the visible area
+        recty[i] = rand() % (240 - 2); // Random initial y-coordinate within the visible area
+        right[i] = (rand() % 2);  // Random direction for x-axis (-1 or 1)
+        down[i] = (rand() % 2); // Random direction for y-axis (-1 or 1)
+        short int colors[10] = { 0xffff, 0xf800, 0x07e0, 0x001f, 0xf81f, 0x07ff, 0x4810, 0x915c, 0x0435, 0xffe0 }; // Array of random colors
+        colour_box[i] = colors[rand() % 10]; // Get a random color from the array
+    }
 
   
     while (1)
@@ -206,22 +214,23 @@ int main(void)
 			}
 		}
 		
-		// code for drawing the boxes and lines
-		for(i = 0; i < 8; i++){
-			draw_rectangle(rectx[i], recty[i], size, 0x001F);
-			
-			if(i != 7){
-				draw_line(rectx[i], recty[i], rectx[i + 1], recty[i + 1], 0x001F);
-			}
-			else{
-				draw_line(rectx[i], recty[i], rectx[0], recty[0], 0x001F);
-			}
-			
-		}
+	for(i = 0; i < 8; i++){
+    draw_rectangle(rectx[i], recty[i], size, 0x001F); // Draw rectangles in blue
+
+    // Draw lines with different colors
+    short int line_color = 0xF800 + (i * 1000); // Start with red color and increment by 1000 for each line
+    if(i != 7){
+        draw_line(rectx[i], recty[i], rectx[i + 1], recty[i + 1], line_color);
+    } else {
+        draw_line(rectx[i], recty[i], rectx[0], recty[0], line_color);
+    }
+}
+
+}
        
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
         pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
     }
-}
+
 
 // code for subroutines (not shown)
