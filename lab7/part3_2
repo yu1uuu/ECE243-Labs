@@ -1,0 +1,214 @@
+// Write a C-language program to implement your animation. Define two global
+// arrays as a front and a back buffer in your program, so that you can avoid
+// making changes to the image while it is being displayed by the frame buffer
+// controller. An example of a suitable main program is given in Figure 5 and
+// provided in the file part3.c. The code sets the location in memory of both
+// the front and back frame buffers—the front buffer is set to the start of
+// Buffer1, and the back buffer to the starting address of Buffer2. In each
+// iteration of the while loop, the code removes from the screen any boxes and
+// lines that have been drawn in the previous loop-iteration (note: if you clear
+// the entire screen, rather than just “erasing” the boxes and lines that are
+// currently visible, you may find that your animation runs more slowly than
+// expected), then draws new boxes and lines, and then updates the locations of
+// boxes. At the bottom of the while loop the code calls the function
+// wait_for_vsync (), which synchronizes with the VGA controller and swaps the
+// front and back frame buffer pointers.
+
+#define NUM_SQUARE 8
+#include <stdbool.h>
+#include <stdlib.h>
+#include <time.h>
+
+volatile int pixel_buffer_start;  // global variable
+volatile int *pixel_ctrl_ptr = (int *)0xFF203020;
+volatile int *status_register = (int *)0xFF20302C;
+
+short int Buffer1[240][512];  // 240 rows, 512 (320 + padding) columns
+short int Buffer2[240][512];
+
+int main(void) {
+  // Direction
+  int dx_box[NUM_SQUARE] = {0, 0, 0, 0};
+  int dy_box[NUM_SQUARE] = {0, 0, 0, 0};
+
+  // Initial position
+  int x_box[NUM_SQUARE] = {0, 0, 0, 0};
+  int y_box[NUM_SQUARE] = {0, 0, 0, 0};
+  short int colour[NUM_SQUARE] = {0, 0, 0, 0};
+
+  // Colours
+  short int colour_arr[10] = {0xffff, 0xf800, 0x07e0, 0x001f, 0xf81f, 0x07ff, 0x4810, 0x915c, 0x0435, 0xffe0};
+  // white, red, green, blue, yellow, purple, orange, aqua, silver, lime
+
+  // Initialize random values
+  for (int count = 0; count < NUM_SQUARE; count++) {
+    // Direction
+    dx_box[count] = ((rand() % 2) * 2) - 1;  // Either -1 or 1
+    dy_box[count] = ((rand() % 2) * 2) - 1;  // Either -1 or 1
+
+    // Initial position
+    x_box[count] = rand() % 319;  // Random value between 0 ~ 318
+    y_box[count] = rand() % 239;  // Random value between 0 ~ 238
+
+    // Line colour
+    colour[count] = colour_arr[rand() % 10];  // Random value between 0 ~ 9
+  }
+
+  /* set front pixel buffer to Buffer 1 */
+  *(pixel_ctrl_ptr + 1) =
+      (int)&Buffer1;  // first store the address in the back buffer
+
+  /* now, swap the front/back buffers, to set the front buffer location */
+  wait_for_vsync();
+
+  /* initialize a pointer to the pixel buffer, used by drawing functions */
+  pixel_buffer_start = *pixel_ctrl_ptr;
+  clear_screen();  // pixel_buffer_start points to the pixel buffer
+
+  /* set back pixel buffer to Buffer 2 */
+  *(pixel_ctrl_ptr + 1) = (int)&Buffer2;
+  pixel_buffer_start = *(pixel_ctrl_ptr + 1);  // we draw on the back buffer
+  clear_screen();  // pixel_buffer_start points to the pixel buffer
+
+  while (1) {
+    /* Erase any boxes and lines that were drawn in the last iteration */
+
+    // erase_square();
+    clear_screen();
+    // wait_for_vsync();  // swap front and back buffers on VGA vertical sync
+
+    // code for drawing the boxes and lines (not shown)
+
+    // Draw and colour boxes (2x2 pixels)
+    for (int count = 0; count < NUM_SQUARE; count++) {
+      plot_pixel(x_box[count], y_box[count], colour[count]);
+      plot_pixel(x_box[count] + 1, y_box[count], colour[count]);
+      plot_pixel(x_box[count] + 1, y_box[count] + 1, colour[count]);
+      plot_pixel(x_box[count], y_box[count] + 1, colour[count]);
+    }
+
+    int x_start, x_finish, y_start, y_finish;
+    short int line_colour;
+
+    // Draw and colour lines (8 boxes)
+    for (int count = 0; count < NUM_SQUARE; count++) {
+      x_start = x_box[count];
+      y_start = y_box[count];
+
+      if (count == NUM_SQUARE - 1) {
+        x_finish = x_box[0];
+        y_finish = y_box[0];
+      } else {
+        x_finish = x_box[count + 1];
+        y_finish = y_box[count + 1];
+      }
+      line_colour = colour[count];
+      draw_line(x_start, y_start, x_finish, y_finish, line_colour);
+    }
+
+    // code for updating the locations of boxes (not shown)
+    bool switch_x;
+    bool switch_y;
+
+    for (int count = 0; count < NUM_SQUARE; count++) {
+      switch_x = false;
+      switch_y = false;
+
+      if (x_box[count] == 0 || x_box[count] == 318) {
+        switch_x = true;
+      }
+      if (y_box[count] == 0 || y_box[count] == 238) {
+        switch_y = true;
+      }
+
+      if (switch_x) {
+        dx_box[count] *= -1;
+      } 
+	  if (switch_y) {
+        dy_box[count] *= -1;
+      }
+
+      x_box[count] += dx_box[count];
+      y_box[count] += dy_box[count];
+    }
+
+    wait_for_vsync();  // swap front and back buffers on VGA vertical sync
+    pixel_buffer_start = *(pixel_ctrl_ptr + 1);  // new back buffer
+  }
+}
+
+void wait_for_vsync() {
+  *pixel_ctrl_ptr = 1;
+  while ((*status_register) & 0x01) {
+    // Wait for 1/60th of a second (wait for status register S bit to go to 0)
+  }
+}
+
+// code for subroutines (not shown)
+void plot_pixel(int x, int y, short int line_colour) {
+  volatile short int *one_pixel_address;
+
+  one_pixel_address = pixel_buffer_start + (y << 10) + (x << 1);
+
+  *one_pixel_address = line_colour;
+}
+
+void clear_screen() {
+  int x, y = 0;
+  short int colour = 0;
+
+  for (x = 0; x < 320; x++) {
+    for (y = 0; y < 240; y++) {
+      plot_pixel(x, y, colour);
+    }
+  }
+}
+
+void swap(int *x, int *y) {
+  int temp = *x;
+  *x = *y;
+  *y = temp;
+}
+
+void draw_line(int x0, int y0, int x1, int y1, short int line_colour) {
+  bool is_steep = abs(y1 - y0) > abs(x1 - x0);
+  if (is_steep) {
+    swap(&x0, &y0);
+    swap(&x1, &y1);
+  } 
+  if (x0 > x1) {
+    swap(&x0, &x1);
+    swap(&y0, &y1);
+  }
+
+  int deltax = x1 - x0;
+  int deltay = abs(y1 - y0);
+
+  int error = -(deltax / 2);
+  int y = y0;
+  int y_step;
+
+  if (y0 < y1) {
+    y_step = 1;
+  } else {
+    y_step = -1;
+  }
+
+  for (int x = x0; x <= x1; x++) {
+    if (is_steep) {
+      plot_pixel(y, x, line_colour);
+    } else {
+      plot_pixel(x, y, line_colour);
+    }
+    error = error + deltay;
+
+    if (error > 0) {
+      y = y + y_step;
+      error = error - deltax;
+    }
+  }
+}
+
+void erase_line(int x0, int y0, int x1, int y1, short int line_colour) {
+  draw_line(x0, y0, x1, y1, 0x0000);
+}
