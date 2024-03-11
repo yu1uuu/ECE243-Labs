@@ -80,7 +80,7 @@ void draw_line(int x0, int y0, int x1, int y1, int color) {
     int error = -(dx/2);
     int y = y0;
 
-    int ystep = 1;
+    int ystep = 1; // check if slope if pos or neg
     if (y0 > y1) {
         ystep = -1;
     }
@@ -108,8 +108,10 @@ void swap(int *a, int *b) {
 
 void plot_pixel(int x, int y, short int line_color)
 {
-    volatile short int *one_pixel_address;
-    one_pixel_address = pixel_buffer_start + (y << 10) + (x << 1);
-    *one_pixel_address = line_color;
+    volatile short int *one_pixel_address; // base address of pixel buffer
+    // shift y coordinates left by 10 bits to get start of row
+    // shift x by 1 since each pixel requires 2 bytes for color value
+    one_pixel_address = pixel_buffer_start + (y << 10) + (x << 1); // adding offset to reach correct row
+    *one_pixel_address = line_color; // write color to memory address
 }
 
